@@ -2,6 +2,8 @@
 #include "common_includes.h"
 #include "OrderBook.h"
 
+using namespace std;
+
 OrderBookLevelInfos::OrderBookLevelInfos(const LevelInfos& bids, const LevelInfos& asks)
 	: bids_{ bids }
 	, asks_{ asks }
@@ -218,16 +220,23 @@ OrderBookLevelInfos OrderBook::GetOrderInfos() const {
 	return OrderBookLevelInfos{ bidInfos, askInfos};
 }
 
+auto OrderBook::GenerateRandomOrder() {
 
-/*
-int main() {
+	srand(time(0));
+	size_t randomType = rand() % 2;
+	OrderType orderType = (randomType == 0) ? OrderType::FillAndKill : OrderType::GoodTillCancel;
+	
+	uint64_t orderId = rand() % 1001;
+	
+	size_t randomSide = rand() % 2;
+	Side orderSide = (randomSide == 0) ? Side::Buy : Side::Sell;
+	
+	int32_t orderPrice = (rand() % 10) + 1;
 
-	OrderBook orderbook;
-	const OrderId orderId = 1;
-	orderbook.AddOrder(std::make_shared<Order>(OrderType::GoodTillCancel, orderId, Side::Buy, 100, 10));
-	std::cout << orderbook.Size() << std::endl;   // size should be 1
-	orderbook.CancelOrder(orderId);
-	std::cout << orderbook.Size() << std::endl;   // size should be 0
-	return 0;
+	uint32_t orderQuantity = (rand() % 100) + 1;
+	
+	shared_ptr<Order> randomOrder = make_shared<Order>(orderType, orderId, orderSide, orderPrice, orderQuantity);
+
+	return AddOrder(randomOrder);
 }
-*/
+

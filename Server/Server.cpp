@@ -17,20 +17,19 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/strand.hpp>
-#include <algorithm>
 #include <cstdlib>
 #include <functional>
-#include <iostream>
-#include <memory>
-#include <string>
 #include <thread>
-#include <vector>
+#include "common_includes.h"
+#include "OrderBookManager.h"
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+
+using namespace std;
 
 //------------------------------------------------------------------------------
 
@@ -128,6 +127,25 @@ public:
         if (ec)
             return fail(ec, "read");
 
+        string bufferAsString = buffers_to_string(buffer_);
+
+        // "subscribe:SYMBOL"
+        if (bufferAsString.starts_with("subscribe")) {
+            string symbol = a.substr(10);
+            
+        }
+        // "unsubscribe:SYMBOL"
+        else if (bufferAsString.starts_with("unsubscribe")) {
+            string symbol = a.substr(12);
+
+        }
+        
+        
+    }
+
+    void
+        do_write()
+    {
         // Echo the message
         ws_.text(ws_.got_text());
         ws_.async_write(
@@ -136,7 +154,6 @@ public:
                 &session::on_write,
                 shared_from_this()));
     }
-
     void
         on_write(
             beast::error_code ec,
@@ -152,6 +169,20 @@ public:
 
         // Do another read
         do_read();
+    }
+    void
+        write_trades(vector<Trade> trades)
+    {
+        // Clear the buffer
+        buffer_.consume(buffer_.size());
+
+
+
+        ws_.async_write(
+            buffer_.data(),
+            beast::bind_front_handler(
+                &session::on_write,
+                shared_from_this()));
     }
 };
 
@@ -212,8 +243,12 @@ public:
     {
         do_accept();
     }
+    shared_ptr<session> getSession() {
+        return session_;
+    }
 
 private:
+    shared_ptr<session> session_;
     void
         do_accept()
     {
@@ -235,7 +270,8 @@ private:
         else
         {
             // Create the session and run it
-            std::make_shared<session>(std::move(socket))->run();
+            session_ = std::make_shared<session>(std::move(socket));
+            session_->run();
         }
 
         // Accept another connection
@@ -264,7 +300,8 @@ int main(int argc, char* argv[])
     net::io_context ioc{ threads };
 
     // Create and launch a listening port
-    std::make_shared<listener>(ioc, tcp::endpoint{ address, port })->run();
+    shared_ptr<listener> listener_ = std::make_shared<listener>(ioc, tcp::endpoint{ address, port });
+    listener_->run();
 
     // Run the I/O service on the requested number of threads
     std::vector<std::thread> v;
@@ -276,6 +313,21 @@ int main(int argc, char* argv[])
                 ioc.run();
             });
     ioc.run();
+
+    shared_ptr<OrderBookManager> orderBookManager = make_shared<OrderBookManager>();
+
+    orderBookManager->AddSymbol("META", 5);
+
+    shared_ptr<OrderBook> orderBook = orderBookManager->GetOrderBook("META");
+
+    while (1) {
+        vector<Trade> trades = orderBook->GenerateRandomOrder();
+        if (!trades.empty()) {
+            auto session = listener_->getSession();
+            session->write_trades(trades);
+        }
+        this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
 
     return EXIT_SUCCESS;
 }

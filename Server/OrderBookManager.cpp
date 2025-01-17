@@ -4,38 +4,46 @@
 
 #include "common_includes.h"
 #include "OrderBook.h"
+#include "OrderBookManager.h"
 
 using namespace std;
 using Symbol = string;
 
-class OrderBookManager {
-private:
-	unordered_map<Symbol, shared_ptr<OrderBook>> orderBookMap;
-	unordered_map<Symbol, shared_ptr<size_t>>    orderBookDepth;   // how many levels on bids/asks to desseminate to client
-public:
-	bool AddSymbol(Symbol symbol, size_t depth) {
+bool OrderBookManager::AddSymbol(Symbol symbol, size_t depth) {
 
-		auto result = orderBookMap.insert({ symbol, make_shared<OrderBook>() });
-		orderBookDepth.insert({ symbol, make_shared<size_t>(depth) });
-		if (result.second) {
-			return true;
-		}
-		else {
-			return false;
-		}
+	auto result = orderBookMap.insert({ symbol, make_shared<OrderBook>() });
+	orderBookDepth.insert({ symbol, depth });
+	if (result.second) {
+		return true;
 	}
-	bool RemoveSymbol(Symbol symbol) {
-
-		if (orderBookMap.contains(symbol)) {
-			orderBookMap.erase(symbol);
-			return true;
-		}
-		else {
-			return false;
-		}
+	else {
+		return false;
 	}
-	shared_ptr<OrderBook> GetOrderBook(Symbol) {
+}
+bool OrderBookManager::RemoveSymbol(Symbol symbol) {
 
+	if (orderBookMap.contains(symbol) && orderBookDepth.contains(symbol)) {
+		orderBookMap.erase(symbol);
+		orderBookDepth.erase(symbol);
+		return true;
 	}
-};
-
+	else {
+		return false;
+	}
+}
+shared_ptr<OrderBook> OrderBookManager::GetOrderBook(Symbol symbol) const {
+	if (orderBookMap.contains(symbol)) {
+		return orderBookMap.at(symbol);
+	}
+	else {
+		return {};
+	}
+}
+size_t OrderBookManager::GetOrderBookDepth(Symbol symbol) const {
+	if (orderBookDepth.contains(symbol)) {
+		return orderBookDepth.at(symbol);
+	}
+	else {
+		return {};
+	}
+}

@@ -17,7 +17,6 @@ using Price = std::int32_t;
 using Quantity = std::uint32_t;
 using OrderId = std::uint64_t;
 
-
 struct LevelInfo {
 	Price price_;
 	Quantity quantity_;
@@ -117,6 +116,7 @@ public:
 	Trades MatchOrder(OrderModify order);
 	std::size_t Size() const;
 	OrderBookLevelInfos GetOrderInfos() const;
+	auto GenerateRandomOrder();
 };
 
 #endif // ORDERBOOK_H
