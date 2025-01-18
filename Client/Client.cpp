@@ -6,7 +6,6 @@
 //
 // Official repository: https://github.com/boostorg/beast
 //
-
 //------------------------------------------------------------------------------
 //
 // Example: WebSocket client, asynchronous
@@ -27,6 +26,7 @@ namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+using namespace std;
 
 //------------------------------------------------------------------------------
 
@@ -133,11 +133,22 @@ public:
     }
 
     void
-        write() 
+        write(string message) 
     {
+        // Clear the buffer
+        buffer_.consume(buffer_.size());
+
+        // Allocate space in the buffer
+        auto size = message.size();
+        auto buffer_space = buffer_.prepare(size);
+        // Copy the data into the buffer
+        memcpy(buffer_space.data(), message.data(), size);
+        // Commit the data to the buffer
+        buffer_.commit(size);
+
         // Send the message
         ws_.async_write(
-            net::buffer(text_),
+            buffer_.data(),
             beast::bind_front_handler(
                 &session::on_write,
                 shared_from_this()));
@@ -240,16 +251,11 @@ int main(int argc, char** argv)
         std::cout << "io_context has stopped!" << std::endl;
         });
 
-    auto counter{ 0 };
-    while (counter < 10) {
-        // Simulate some work (e.g., keep the app alive for a while)
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+    ourSession->write("subscribe:META");
 
-        ourSession->write();
-
+    while (1) {
         ourSession->read();
-
-        counter++;
+        this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 
     // Step 3: Release the work guard to allow io_context to exit after tasks complete
