@@ -130,7 +130,7 @@ public:
         if (ec)
             return fail(ec, "read");
 
-        string bufferAsString = buffers_to_string(buffer_);
+        string bufferAsString = beast::buffers_to_string(buffer_.data());
 
         // "subscribe:SYMBOL"
         if (bufferAsString.starts_with("subscribe")) {
@@ -389,7 +389,6 @@ int main(int argc, char* argv[])
     orderBookManager = make_shared<OrderBookManager>();
     clientSubList = make_unique<vector<string>>();
 
-    
     orderBookManager->AddSymbol("META", 5);
 
     shared_ptr<OrderBook> orderBook = orderBookManager->GetOrderBook("META");

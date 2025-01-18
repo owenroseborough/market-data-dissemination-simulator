@@ -3,6 +3,15 @@
 
 #include "common_includes.h"
 
+using Price = std::int32_t;
+using Quantity = std::uint32_t;
+using OrderId = std::uint64_t;
+
+struct LevelInfo {
+	Price price_;
+	Quantity quantity_;
+};
+
 enum class OrderType {
 	GoodTillCancel,
 	FillAndKill
@@ -13,26 +22,20 @@ enum class Side {
 	Sell
 };
 
-using Price = std::int32_t;
-using Quantity = std::uint32_t;
-using OrderId = std::uint64_t;
-
-struct LevelInfo {
+struct TradeInfo {
+	OrderId orderId_;
 	Price price_;
 	Quantity quantity_;
 };
 
-using LevelInfos = std::vector<LevelInfo>;
-
-class OrderBookLevelInfos {
+class Trade {
 private:
-	LevelInfos bids_;
-	LevelInfos asks_;
+	TradeInfo bidTrade_;
+	TradeInfo askTrade_;
 public:
-	OrderBookLevelInfos(const LevelInfos& bids, const LevelInfos& asks);
-
-	const LevelInfos& GetBids() const;
-	const LevelInfos& GetAsks() const;
+	Trade(const TradeInfo& bidTrade, const TradeInfo& askTrade);
+	const TradeInfo& GetBidTrade() const;
+	const TradeInfo& GetAskTrade() const;
 };
 
 class Order {
@@ -59,6 +62,22 @@ public:
 	void Fill(Quantity quantity);
 };
 
+using Trades = std::vector<Trade>;
+using OrderPointer = std::shared_ptr<Order>;
+using OrderPointers = std::list<OrderPointer>;
+using LevelInfos = std::vector<LevelInfo>;
+
+class OrderBookLevelInfos {
+private:
+	LevelInfos bids_;
+	LevelInfos asks_;
+public:
+	OrderBookLevelInfos(const LevelInfos& bids, const LevelInfos& asks);
+
+	const LevelInfos& GetBids() const;
+	const LevelInfos& GetAsks() const;
+};
+
 class OrderModify {
 private:
 	OrderType orderType_;
@@ -72,28 +91,7 @@ public:
 	Side GetSide() const;
 	Price GetPrice() const;
 	Quantity GetQuantity() const;
-
 	OrderPointer ToOrderPointer(OrderType type) const;
-};
-
-class Trade {
-private:
-	TradeInfo bidTrade_;
-	TradeInfo askTrade_;
-public:
-	Trade(const TradeInfo& bidTrade, const TradeInfo& askTrade);
-	const TradeInfo& GetBidTrade() const;
-	const TradeInfo& GetAskTrade() const;
-};
-
-using Trades = std::vector<Trade>;
-using OrderPointer = std::shared_ptr<Order>;
-using OrderPointers = std::list<OrderPointer>;
-
-struct TradeInfo {
-	OrderId orderId_;
-	Price price_;
-	Quantity quantity_;
 };
 
 class OrderBook {
@@ -116,7 +114,7 @@ public:
 	Trades MatchOrder(OrderModify order);
 	std::size_t Size() const;
 	OrderBookLevelInfos GetOrderInfos() const;
-	auto GenerateRandomOrder();
+	Trades GenerateRandomOrder();
 };
 
 #endif // ORDERBOOK_H

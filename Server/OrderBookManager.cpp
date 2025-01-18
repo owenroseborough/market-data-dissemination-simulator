@@ -11,8 +11,8 @@ using Symbol = string;
 
 bool OrderBookManager::AddSymbol(Symbol symbol, size_t depth) {
 
-	auto result = orderBookMap.insert({ symbol, make_shared<OrderBook>() });
-	orderBookDepth.insert({ symbol, depth });
+	auto result = orderBookMap.insert(pair(symbol, make_shared<OrderBook>()));
+	orderBookDepth.insert(pair(symbol, depth));
 	if (result.second) {
 		return true;
 	}

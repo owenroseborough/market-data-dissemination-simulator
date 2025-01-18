@@ -3,6 +3,8 @@
 
 #include "common_includes.h"
 #include "OrderBook.h"
+
+using namespace std;
 using Symbol = string;
 
 class OrderBookManager {

@@ -47,7 +47,7 @@ Price OrderModify::GetPrice() const { return price_; }
 Quantity OrderModify::GetQuantity() const { return quantity_; }
 
 OrderPointer OrderModify::ToOrderPointer(OrderType type) const {
-	return std::make_shared<Order>(type, GetOrderId(), GetSide(), GetPrice(), GetQuantity());
+	return std::make_shared<Order>(type, OrderModify::GetOrderId(), OrderModify::GetSide(), OrderModify::GetPrice(), OrderModify::GetQuantity());
 }
 
 Trade::Trade(const TradeInfo& bidTrade, const TradeInfo& askTrade)
@@ -220,9 +220,9 @@ OrderBookLevelInfos OrderBook::GetOrderInfos() const {
 	return OrderBookLevelInfos{ bidInfos, askInfos};
 }
 
-auto OrderBook::GenerateRandomOrder() {
+Trades OrderBook::GenerateRandomOrder() {
 
-	srand(time(0));
+	srand(static_cast<unsigned int>(time(0)));
 	size_t randomType = rand() % 2;
 	OrderType orderType = (randomType == 0) ? OrderType::FillAndKill : OrderType::GoodTillCancel;
 	
