@@ -31,6 +31,8 @@ using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 using namespace std;
 
+shared_ptr<OrderBookManager> orderBookManager;
+
 //------------------------------------------------------------------------------
 
 // Report a failure
@@ -131,12 +133,12 @@ public:
 
         // "subscribe:SYMBOL"
         if (bufferAsString.starts_with("subscribe")) {
-            string symbol = a.substr(10);
-            
+            string symbol = bufferAsString.substr(10);
+            write_snapshot(symbol);
         }
         // "unsubscribe:SYMBOL"
         else if (bufferAsString.starts_with("unsubscribe")) {
-            string symbol = a.substr(12);
+            string symbol = bufferAsString.substr(12);
 
         }
         
@@ -163,12 +165,6 @@ public:
 
         if (ec)
             return fail(ec, "write");
-
-        // Clear the buffer
-        buffer_.consume(buffer_.size());
-
-        // Do another read
-        do_read();
     }
     void
         write_trades(vector<Trade> trades)
@@ -176,7 +172,78 @@ public:
         // Clear the buffer
         buffer_.consume(buffer_.size());
 
+        // write trades to buffer
+        string tradesString{""};
 
+        for (auto trade : trades) {
+            tradesString += "Bid: ";
+            tradesString += to_string(trade.GetBidTrade().orderId_);
+            tradesString += " Price: ";
+            tradesString += to_string(trade.GetBidTrade().price_);
+            tradesString += " Quantity: ";
+            tradesString += to_string(trade.GetBidTrade().quantity_);
+            tradesString += " | ";
+            tradesString += "Ask: ";
+            tradesString += to_string(trade.GetAskTrade().orderId_);
+            tradesString += " Price: ";
+            tradesString += to_string(trade.GetAskTrade().price_);
+            tradesString += " Quantity: ";
+            tradesString += to_string(trade.GetAskTrade().quantity_);
+            tradesString += ",";
+        }
+
+        // Allocate space in the buffer
+        auto size = tradesString.size();
+        auto buffer_space = buffer_.prepare(size);
+        // Copy the data into the buffer
+        memcpy(buffer_space.data(), tradesString.data(), size);
+        // Commit the data to the buffer
+        buffer_.commit(size);
+
+        ws_.async_write(
+            buffer_.data(),
+            beast::bind_front_handler(
+                &session::on_write,
+                shared_from_this()));
+    }
+    void
+        write_snapshot(Symbol symbol)
+    {
+        shared_ptr<OrderBook> orderBook = orderBookManager->GetOrderBook(symbol);
+        size_t orderBookDepth = orderBookManager->GetOrderBookDepth(symbol);
+
+        // we have our orderbook for a certain symbol, we now need to make a snapshot to send to client
+        // orderBookDepth has the number of levels on the bids and asks that we will desseminate to client
+        OrderBookLevelInfos levelInfos = orderBook->GetOrderInfos();
+
+        const LevelInfos& BidLevelInfos = levelInfos.GetBids();
+        const LevelInfos& AskLevelInfos = levelInfos.GetAsks();
+
+        orderBookDepth = min(orderBookDepth, BidLevelInfos.size());
+        orderBookDepth = min(orderBookDepth, AskLevelInfos.size());
+
+        string snapshot = format(" {}    \t\t  {}   \n", "Bids", "Asks");
+        
+        size_t counter = 0;
+        while (counter < orderBookDepth) {
+            BidLevelInfos[counter].price_;
+            BidLevelInfos[counter].quantity_;
+
+            AskLevelInfos[counter].price_;
+            AskLevelInfos[counter].quantity_;
+
+            snapshot += format("${}:{} \t\t ${}:{}\n", to_string(BidLevelInfos[counter].price_), to_string(BidLevelInfos[counter].quantity_), to_string(AskLevelInfos[counter].price_), to_string(AskLevelInfos[counter].quantity_));
+            counter++;
+        }
+
+        // now desseminate snapshot
+        // Allocate space in the buffer
+        auto size = snapshot.size();
+        auto buffer_space = buffer_.prepare(size);
+        // Copy the data into the buffer
+        memcpy(buffer_space.data(), snapshot.data(), size);
+        // Commit the data to the buffer
+        buffer_.commit(size);
 
         ws_.async_write(
             buffer_.data(),
@@ -314,7 +381,7 @@ int main(int argc, char* argv[])
             });
     ioc.run();
 
-    shared_ptr<OrderBookManager> orderBookManager = make_shared<OrderBookManager>();
+    orderBookManager = make_shared<OrderBookManager>();
 
     orderBookManager->AddSymbol("META", 5);
 
