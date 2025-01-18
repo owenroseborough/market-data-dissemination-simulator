@@ -32,6 +32,7 @@ using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 using namespace std;
 
 shared_ptr<OrderBookManager> orderBookManager;
+unique_ptr<vector<string>> clientSubList;
 
 //------------------------------------------------------------------------------
 
@@ -134,15 +135,19 @@ public:
         // "subscribe:SYMBOL"
         if (bufferAsString.starts_with("subscribe")) {
             string symbol = bufferAsString.substr(10);
-            write_snapshot(symbol);
+            if (orderBookManager->GetOrderBook(symbol)) {
+                clientSubList->push_back(symbol);
+                write_snapshot(symbol);
+            }
         }
         // "unsubscribe:SYMBOL"
         else if (bufferAsString.starts_with("unsubscribe")) {
             string symbol = bufferAsString.substr(12);
-
+            auto it = find(clientSubList->begin(), clientSubList->end(), symbol);
+            if (it != clientSubList->end()) {
+                clientSubList->erase(it);
+            }
         }
-        
-        
     }
 
     void
@@ -382,7 +387,9 @@ int main(int argc, char* argv[])
     ioc.run();
 
     orderBookManager = make_shared<OrderBookManager>();
+    clientSubList = make_unique<vector<string>>();
 
+    
     orderBookManager->AddSymbol("META", 5);
 
     shared_ptr<OrderBook> orderBook = orderBookManager->GetOrderBook("META");
